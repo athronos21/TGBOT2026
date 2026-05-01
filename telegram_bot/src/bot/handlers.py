@@ -147,7 +147,9 @@ def department_required(func):
         user_id = update.effective_user.id
         with get_session() as session:
             profile = get_admin_profile(session, user_id)
-        if not profile:
+            # Read the value while session is still open
+            department = profile.department if profile else None
+        if not department:
             await update.message.reply_text(
                 "⚠️ You haven't selected your department yet.\n\n"
                 "Please use /start to choose your department first.",
@@ -155,7 +157,7 @@ def department_required(func):
             )
             return ConversationHandler.END
         # Inject department into context for handlers that need it
-        context.user_data["department"] = profile.department
+        context.user_data["department"] = department
         return await func(update, context, *args, **kwargs)
     return wrapper
 
