@@ -186,10 +186,10 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.effective_user
     with get_session() as session:
         profile = get_admin_profile(session, user.id)
+        department = profile.department if profile else None
 
-    if profile:
-        # Already set up — show main menu directly
-        await _send_main_menu(update, profile.department, user.first_name)
+    if department:
+        await _send_main_menu(update, department, user.first_name)
         return ConversationHandler.END
 
     # First time — must pick department
@@ -286,8 +286,8 @@ async def sw_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.effective_user
     with get_session() as session:
         profile = get_admin_profile(session, user.id)
+        current = profile.department if profile else "None"
 
-    current = profile.department if profile else "None"
     await update.message.reply_text(
         f"🔄 *Switch Department*\n\nCurrent: *{current}*\n\nSelect your new department:",
         parse_mode=ParseMode.MARKDOWN,
