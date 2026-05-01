@@ -611,7 +611,42 @@ async def mc_instructor(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     text = update.effective_message.text.strip()
     instructor = "TBA" if text in ("⏭ Skip (TBA)", "skip", "tba", "") else text
     context.user_data["mc_current"]["instructor"] = instructor
-    name = context.user_data["mc_current"]["name"]
+    current = context.user_data["mc_current"]
+
+    # If batch and semester already set (from curriculum picker), skip type/batch/semester steps
+    if "batch" in current and "semester" in current and "is_lab" in current:
+        # All fields pre-filled — stage directly
+        context.user_data["mc_courses"].append(current)
+        context.user_data["mc_current"] = {}
+
+        count = len(context.user_data["mc_courses"])
+        kind  = "🔬 Lab" if current["is_lab"] else "📚 Class"
+        staged_msg = (
+            f"✅ *Staged #{count}:* {current['name']}\n"
+            f"   {current['credit_hours']}cr | {kind} | "
+            f"{current['batch']} yr | Sem {current['semester']} | 👤 {instructor}"
+        )
+
+        if count >= MAX_COURSES:
+            summary = _summary_text(context.user_data["mc_courses"])
+            await update.effective_message.reply_text(
+                f"{staged_msg}\n\n⚠️ Maximum of {MAX_COURSES} courses reached.\n\n"
+                f"{summary}\n\nTap *✅ Confirm & Save* to save all, or *🔄 Start over* to discard.",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=CONFIRM_KB,
+            )
+            return MC_CONFIRM
+
+        await update.effective_message.reply_text(
+            f"{staged_msg}\n\n"
+            f"Would you like to add another course? _{MAX_COURSES - count} slot(s) remaining_",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=YESNO_KB,
+        )
+        return MC_ANOTHER
+
+    # Manual entry — still need type, batch, semester
+    name = current["name"]
     await update.effective_message.reply_text(
         f"*{name}*\n\nSelect *course type*:",
         parse_mode=ParseMode.MARKDOWN,
