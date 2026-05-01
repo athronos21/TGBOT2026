@@ -71,7 +71,10 @@ SKIP_KB     = _kb([["⏭ Skip (TBA)"]])
 
 # /add_course  &  /add_courses  (shared per-course steps)
 (
-    MC_NAME,        # type course name
+    MC_PICK_BATCH,  # pick batch first
+    MC_PICK_SEM,    # pick semester
+    MC_PICK_COURSE, # pick course from curriculum buttons
+    MC_NAME,        # OR type course name manually
     MC_CREDITS,     # select credit hours  1-4
     MC_INSTRUCTOR,  # type instructor name (or skip)
     MC_TYPE,        # select Class / Lab
@@ -79,44 +82,44 @@ SKIP_KB     = _kb([["⏭ Skip (TBA)"]])
     MC_SEMESTER,    # select Semester 1 / 2
     MC_ANOTHER,     # add another? Yes / Done
     MC_CONFIRM,     # review summary → Confirm or Start over
-) = range(8)
+) = range(11)
 
 # /add_room  /add_lab  — states defined inside the handler section below
 
 # /view_schedule
-VS_BATCH    = 10
-VS_SECTION  = 11
-VS_SEMESTER = 12
+VS_BATCH    = 12
+VS_SECTION  = 13
+VS_SEMESTER = 14
 
 # /delete_course
-DC_PICK = 13
+DC_PICK = 15
 
 # /delete_room
-DR_PICK = 14
+DR_PICK = 16
 
 # /assign_instructor  (pick course via button, then type name)
-AI_PICK = 15
-AI_NAME = 16
+AI_PICK = 17
+AI_NAME = 18
 
 # /assign_lab  (pick lab → toggle batches → confirm)
-AL_PICK    = 19
-AL_BATCHES = 20
-AL_CONFIRM = 21
+AL_PICK    = 21
+AL_BATCHES = 22
+AL_CONFIRM = 23
 
 # /curriculum  (browse by year)
-CUR_YEAR     = 22
-CUR_SEMESTER = 23
+CUR_YEAR     = 24
+CUR_SEMESTER = 25
 
 # /search_course  (free-text search)
-SC_QUERY = 24
+SC_QUERY = 26
 
 # /start department selection
-DEPT_PICK    = 25
-DEPT_CONFIRM = 26
+DEPT_PICK    = 27
+DEPT_CONFIRM = 28
 
 # /switch_department
-SW_PICK    = 27
-SW_CONFIRM = 28
+SW_PICK    = 29
+SW_CONFIRM = 30
 
 MAX_COURSES = 10   # maximum subjects per session
 
@@ -441,17 +444,134 @@ def _summary_text(courses: list) -> str:
 @admin_only
 @department_required
 async def mc_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Entry point — reset state and ask for first course name."""
+    """Entry point — ask which batch to add courses for."""
     context.user_data.clear()
     context.user_data["mc_courses"] = []
     await update.effective_message.reply_text(
         "📚 *Add Courses* _(up to 10)_\n\n"
-        f"{_course_progress(context)}\n\n"
-        "✏️ Type the *course name*:",
+        "Select the *batch* (year group):",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=BATCH_KB,
+    )
+    return MC_PICK_BATCH
+
+
+async def mc_pick_batch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.effective_message.text.strip()
+    if text not in BATCHES:
+        await update.effective_message.reply_text("Please tap one of the buttons:", reply_markup=BATCH_KB)
+        return MC_PICK_BATCH
+    context.user_data["mc_batch"] = text
+    await update.effective_message.reply_text(
+        f"Batch: *{text}*\n\nSelect *semester*:",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=SEMESTER_KB,
+    )
+    return MC_PICK_SEM
+
+
+async def mc_pick_sem(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.effective_message.text.strip()
+    if text not in ("Semester 1", "Semester 2"):
+        await update.effective_message.reply_text("Please tap one of the buttons:", reply_markup=SEMESTER_KB)
+        return MC_PICK_SEM
+
+    batch = context.user_data["mc_batch"]
+    semester = 1 if text == "Semester 1" else 2
+
+    # Map batch+semester → curriculum year
+    batch_sem_to_year = {
+        ("2nd", 2): (1, 2),
+        ("3rd", 1): (2, 1),
+        ("3rd", 2): (2, 2),
+        ("4th", 1): (3, 1),
+        ("4th", 2): (3, 2),
+    }
+    curriculum_key = batch_sem_to_year.get((batch, semester))
+
+    context.user_data["mc_semester"] = semester
+
+    if curriculum_key:
+        # Load curriculum courses for this batch/semester
+        with get_session() as session:
+            from src.bot.commands import get_curriculum_courses
+            from src.database.models import CurriculumSemester
+            cur_year, cur_sem = curriculum_key
+            courses = get_curriculum_courses(session, year=cur_year, semester=cur_sem)
+            # Read all needed attributes while session is open
+            course_list = [
+                {
+                    "name": c.full_name or c.title,
+                    "credit_hours": c.credit_hours or 3,
+                    "is_lab": any(kw in (c.title or "").lower()
+                                  for kw in ["programming", "lab", "practical", "gis", "multimedia"]),
+                }
+                for c in courses
+                if c.code != "TBD"
+            ]
+
+        if course_list:
+            context.user_data["mc_curriculum"] = course_list
+            # Build keyboard — 1 course per row
+            buttons = [[c["name"]] for c in course_list]
+            buttons.append(["✏️ Type manually"])
+            await update.effective_message.reply_text(
+                f"*{batch} Year — Semester {semester}*\n\n"
+                "Tap a course to add it, or type manually:",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=_kb(buttons, one_time=True),
+            )
+            return MC_PICK_COURSE
+
+    # No curriculum mapping — fall back to manual entry
+    await update.effective_message.reply_text(
+        f"{_course_progress(context)}\n\n✏️ Type the *course name*:",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=ReplyKeyboardRemove(),
     )
     return MC_NAME
+
+
+async def mc_pick_course(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.effective_message.text.strip()
+    course_list = context.user_data.get("mc_curriculum", [])
+    course_names = [c["name"] for c in course_list]
+
+    if text == "✏️ Type manually":
+        await update.effective_message.reply_text(
+            f"{_course_progress(context)}\n\n✏️ Type the *course name*:",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return MC_NAME
+
+    if text not in course_names:
+        buttons = [[c] for c in course_names] + [["✏️ Type manually"]]
+        await update.effective_message.reply_text(
+            "Please tap one of the course buttons:",
+            reply_markup=_kb(buttons, one_time=True),
+        )
+        return MC_PICK_COURSE
+
+    # Find the selected course and pre-fill details
+    selected = next(c for c in course_list if c["name"] == text)
+    context.user_data["mc_current"] = {
+        "name": selected["name"],
+        "credit_hours": selected["credit_hours"],
+        "is_lab": selected["is_lab"],
+        "batch": context.user_data["mc_batch"],
+        "semester": context.user_data["mc_semester"],
+    }
+
+    kind = "🔬 Lab" if selected["is_lab"] else "📚 Class"
+    await update.effective_message.reply_text(
+        f"*{selected['name']}*\n"
+        f"{selected['credit_hours']}cr | {kind}\n\n"
+        "👤 Type the *instructor's name*, or tap ⏭ Skip:",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=SKIP_KB,
+    )
+    return MC_INSTRUCTOR
 
 
 async def mc_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -580,6 +700,16 @@ async def mc_semester(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 async def mc_another(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     text = update.effective_message.text.strip()
     if text == "✅ Yes, add another":
+        # Go back to course picker if curriculum available, else manual
+        course_list = context.user_data.get("mc_curriculum", [])
+        if course_list:
+            buttons = [[c["name"]] for c in course_list] + [["✏️ Type manually"]]
+            await update.effective_message.reply_text(
+                f"{_course_progress(context)}\n\nTap a course to add:",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=_kb(buttons, one_time=True),
+            )
+            return MC_PICK_COURSE
         await update.effective_message.reply_text(
             f"{_course_progress(context)}\n\n✏️ Type the *course name*:",
             parse_mode=ParseMode.MARKDOWN,
@@ -671,10 +801,10 @@ ROOM_YESNO_KB = _kb([["✅ Yes, add another", "🏁 Done, save all"]])
 ROOM_CONFIRM_KB = _kb([["✅ Confirm & Save", "🔄 Start over"]])
 
 # Room conversation states (reused for both /add_room and /add_lab)
-AR_NAME     = 8
-AR_CAPACITY = 9
-AR_ANOTHER  = 17   # new state
-AR_CONFIRM  = 18   # new state
+AR_NAME     = 31
+AR_CAPACITY = 32
+AR_ANOTHER  = 33
+AR_CONFIRM  = 34
 
 MAX_ROOMS = 10
 
@@ -1546,14 +1676,17 @@ def build_application(token: str) -> Application:
         ConversationHandler(
             entry_points=[CommandHandler("add_courses", mc_start)],
             states={
-                MC_NAME:       [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_name)],
-                MC_CREDITS:    [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_credits)],
-                MC_INSTRUCTOR: [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_instructor)],
-                MC_TYPE:       [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_type)],
-                MC_BATCH:      [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_batch)],
-                MC_SEMESTER:   [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_semester)],
-                MC_ANOTHER:    [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_another)],
-                MC_CONFIRM:    [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_confirm)],
+                MC_PICK_BATCH:  [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_pick_batch)],
+                MC_PICK_SEM:    [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_pick_sem)],
+                MC_PICK_COURSE: [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_pick_course)],
+                MC_NAME:        [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_name)],
+                MC_CREDITS:     [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_credits)],
+                MC_INSTRUCTOR:  [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_instructor)],
+                MC_TYPE:        [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_type)],
+                MC_BATCH:       [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_batch)],
+                MC_SEMESTER:    [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_semester)],
+                MC_ANOTHER:     [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_another)],
+                MC_CONFIRM:     [MessageHandler(filters.TEXT & ~filters.COMMAND, mc_confirm)],
             },
             fallbacks=[CommandHandler("cancel", conv_cancel)],
         )
