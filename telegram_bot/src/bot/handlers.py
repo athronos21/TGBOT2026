@@ -129,7 +129,7 @@ def admin_only(func):
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         user_id = update.effective_user.id
         if ADMIN_TELEGRAM_ID and user_id != ADMIN_TELEGRAM_ID:
-            await update.message.reply_text(
+            await update.effective_message.reply_text(
                 "⛔ Access denied. This bot is for the Department Head only."
             )
             return ConversationHandler.END
@@ -151,7 +151,7 @@ def department_required(func):
             # Read the value while session is still open
             department = profile.department if profile else None
         if not department:
-            await update.message.reply_text(
+            await update.effective_message.reply_text(
                 "⚠️ You haven't selected your department yet.\n\n"
                 "Please use /start to choose your department first.",
                 reply_markup=ReplyKeyboardRemove(),
@@ -194,7 +194,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
 
     # First time — must pick department
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"👋 Welcome, *{user.first_name}*!\n\n"
         "Before you begin, please select your *department*:",
         parse_mode=ParseMode.MARKDOWN,
@@ -204,16 +204,16 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def dept_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     if text not in DEPARTMENTS:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "Please tap one of the department buttons:",
             reply_markup=_dept_kb(),
         )
         return DEPT_PICK
 
     context.user_data["selected_dept"] = text
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"You selected:\n\n🏛 *{text}*\n\nIs this correct?",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=_kb([["✅ Yes, confirm", "🔄 Choose again"]]),
@@ -222,17 +222,17 @@ async def dept_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def dept_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
 
     if text == "🔄 Choose again":
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "Select your department:",
             reply_markup=_dept_kb(),
         )
         return DEPT_PICK
 
     if text != "✅ Yes, confirm":
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "Please tap one of the buttons:",
             reply_markup=_kb([["✅ Yes, confirm", "🔄 Choose again"]]),
         )
@@ -271,7 +271,7 @@ async def _send_main_menu(update: Update, department: str, first_name: str) -> N
         [InlineKeyboardButton("🕐 Seed Slots",           callback_data="cmd_seed_slots"),
          InlineKeyboardButton("🔄 Switch Department",    callback_data="cmd_switch_department")],
     ])
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"👋 *Welcome, {first_name}!*\n"
         f"🏛 Department: *{department}*\n\n"
         "Tap a button to get started:",
@@ -285,50 +285,40 @@ async def _send_main_menu(update: Update, department: str, first_name: str) -> N
 
 async def menu_button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
-    Handle all main menu inline button presses.
-    Sends the corresponding command as a bot message so existing
-    ConversationHandlers pick it up naturally.
+    Handle main menu inline button presses.
+    Calls the handler directly using effective_message so all handlers work.
     """
     query = update.callback_query
     await query.answer()
 
-    # Map callback_data → command text
-    cmd_map = {
-        "cmd_add_courses":          "/add_courses",
-        "cmd_list_courses":         "/list_courses",
-        "cmd_add_room":             "/add_room",
-        "cmd_add_lab":              "/add_lab",
-        "cmd_list_rooms":           "/list_rooms",
-        "cmd_assign_lab":           "/assign_lab",
-        "cmd_assign_instructor":    "/assign_instructor",
-        "cmd_list_lab_assignments": "/list_lab_assignments",
-        "cmd_generate_schedule":    "/generate_schedule",
-        "cmd_view_schedule":        "/view_schedule",
-        "cmd_export_schedule":      "/export_schedule",
-        "cmd_reset_schedule":       "/reset_schedule",
-        "cmd_delete_course":        "/delete_course",
-        "cmd_delete_room":          "/delete_room",
-        "cmd_curriculum":           "/curriculum",
-        "cmd_search_course":        "/search_course",
-        "cmd_seed_slots":           "/seed_slots",
-        "cmd_switch_department":    "/switch_department",
+    data = query.data
+
+    dispatch = {
+        "cmd_add_courses":          mc_start,
+        "cmd_list_courses":         cmd_list_courses,
+        "cmd_add_room":             _make_room_start("classroom"),
+        "cmd_add_lab":              _make_room_start("lab"),
+        "cmd_list_rooms":           cmd_list_rooms,
+        "cmd_assign_lab":           al_start,
+        "cmd_assign_instructor":    ai_start,
+        "cmd_list_lab_assignments": cmd_list_lab_assignments,
+        "cmd_generate_schedule":    cmd_generate_schedule,
+        "cmd_view_schedule":        vs_start,
+        "cmd_export_schedule":      cmd_export_schedule,
+        "cmd_reset_schedule":       cmd_reset_schedule,
+        "cmd_delete_course":        dc_start,
+        "cmd_delete_room":          dr_start,
+        "cmd_curriculum":           cur_start,
+        "cmd_search_course":        sc_start,
+        "cmd_seed_slots":           cmd_seed_slots,
+        "cmd_switch_department":    sw_start,
     }
 
-    cmd = cmd_map.get(query.data)
-    if not cmd:
+    handler_fn = dispatch.get(data)
+    if not handler_fn:
         return
 
-    # Tell the user which command was triggered, then send it
-    await query.message.reply_text(
-        f"Running {cmd}…",
-        reply_markup=ReplyKeyboardRemove(),
-    )
-    # Send the command as a message from the bot's perspective
-    # by using copy_text — the user sees the command and handlers fire
-    await context.bot.send_message(
-        chat_id=query.message.chat_id,
-        text=cmd,
-    )
+    await handler_fn(update, context)
 
 
 # ── /switch_department ────────────────────────────────────────────────────────
@@ -340,7 +330,7 @@ async def sw_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         profile = get_admin_profile(session, user.id)
         current = profile.department if profile else "None"
 
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"🔄 *Switch Department*\n\nCurrent: *{current}*\n\nSelect your new department:",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=_dept_kb(),
@@ -349,16 +339,16 @@ async def sw_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def sw_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     if text not in DEPARTMENTS:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "Please tap one of the department buttons:",
             reply_markup=_dept_kb(),
         )
         return SW_PICK
 
     context.user_data["selected_dept"] = text
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"Switch to:\n\n🏛 *{text}*\n\nConfirm?",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=_kb([["✅ Yes, switch", "❌ Cancel"]]),
@@ -367,18 +357,18 @@ async def sw_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def sw_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
 
     if text == "❌ Cancel":
         context.user_data.clear()
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "Cancelled. Department unchanged.",
             reply_markup=ReplyKeyboardRemove(),
         )
         return ConversationHandler.END
 
     if text != "✅ Yes, switch":
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "Please tap one of the buttons:",
             reply_markup=_kb([["✅ Yes, switch", "❌ Cancel"]]),
         )
@@ -391,7 +381,7 @@ async def sw_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         set_admin_department(session, user.id, dept, full_name=user.full_name)
 
     context.user_data.clear()
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"✅ Department updated to *{dept}*.",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=ReplyKeyboardRemove(),
@@ -407,9 +397,9 @@ async def cmd_seed_slots(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     with get_session() as session:
         added = seed_time_slots(session)
     if added:
-        await update.message.reply_text(f"✅ Added {added} time slots (Mon–Fri, 08:00–17:00).")
+        await update.effective_message.reply_text(f"✅ Added {added} time slots (Mon–Fri, 08:00–17:00).")
     else:
-        await update.message.reply_text("ℹ️ Time slots already exist.")
+        await update.effective_message.reply_text("ℹ️ Time slots already exist.")
 
 
 # ── /add_courses  (button-driven, 1–10 courses per session) ──────────────────
@@ -454,7 +444,7 @@ async def mc_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Entry point — reset state and ask for first course name."""
     context.user_data.clear()
     context.user_data["mc_courses"] = []
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         "📚 *Add Courses* _(up to 10)_\n\n"
         f"{_course_progress(context)}\n\n"
         "✏️ Type the *course name*:",
@@ -465,12 +455,12 @@ async def mc_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def mc_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    name = update.message.text.strip()
+    name = update.effective_message.text.strip()
     if not name:
-        await update.message.reply_text("Course name cannot be empty. Please type it:")
+        await update.effective_message.reply_text("Course name cannot be empty. Please type it:")
         return MC_NAME
     context.user_data["mc_current"] = {"name": name}
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"*{name}*\n\nSelect *credit hours*:",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=CREDIT_KB,
@@ -479,16 +469,16 @@ async def mc_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def mc_credits(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     if text not in ("1", "2", "3", "4"):
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "Please tap one of the buttons:",
             reply_markup=CREDIT_KB,
         )
         return MC_CREDITS
     context.user_data["mc_current"]["credit_hours"] = int(text)
     name = context.user_data["mc_current"]["name"]
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"*{name}*\n\n"
         "👤 Type the *instructor's name*, or tap ⏭ Skip to set as TBA:",
         parse_mode=ParseMode.MARKDOWN,
@@ -498,11 +488,11 @@ async def mc_credits(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def mc_instructor(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     instructor = "TBA" if text in ("⏭ Skip (TBA)", "skip", "tba", "") else text
     context.user_data["mc_current"]["instructor"] = instructor
     name = context.user_data["mc_current"]["name"]
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"*{name}*\n\nSelect *course type*:",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=TYPE_KB,
@@ -511,13 +501,13 @@ async def mc_instructor(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 
 async def mc_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     if text not in ("📚 Class", "🔬 Lab"):
-        await update.message.reply_text("Please tap one of the buttons:", reply_markup=TYPE_KB)
+        await update.effective_message.reply_text("Please tap one of the buttons:", reply_markup=TYPE_KB)
         return MC_TYPE
     context.user_data["mc_current"]["is_lab"] = (text == "🔬 Lab")
     name = context.user_data["mc_current"]["name"]
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"*{name}*\n\nSelect *batch* (year group):",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=BATCH_KB,
@@ -526,13 +516,13 @@ async def mc_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def mc_batch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     if text not in BATCHES:
-        await update.message.reply_text("Please tap one of the buttons:", reply_markup=BATCH_KB)
+        await update.effective_message.reply_text("Please tap one of the buttons:", reply_markup=BATCH_KB)
         return MC_BATCH
     context.user_data["mc_current"]["batch"] = text
     name = context.user_data["mc_current"]["name"]
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"*{name}*\n\nSelect *semester*:",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=SEMESTER_KB,
@@ -541,9 +531,9 @@ async def mc_batch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def mc_semester(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     if text not in ("Semester 1", "Semester 2"):
-        await update.message.reply_text("Please tap one of the buttons:", reply_markup=SEMESTER_KB)
+        await update.effective_message.reply_text("Please tap one of the buttons:", reply_markup=SEMESTER_KB)
         return MC_SEMESTER
 
     sem = 1 if text == "Semester 1" else 2
@@ -567,7 +557,7 @@ async def mc_semester(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     if count >= MAX_COURSES:
         # Reached the limit — go straight to confirm
         summary = _summary_text(context.user_data["mc_courses"])
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"{staged_msg}\n\n"
             f"⚠️ Maximum of {MAX_COURSES} courses reached.\n\n"
             f"{summary}\n\n"
@@ -578,7 +568,7 @@ async def mc_semester(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         return MC_CONFIRM
 
     # Ask whether to add another
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"{staged_msg}\n\n"
         f"Would you like to add another course? _{MAX_COURSES - count} slot(s) remaining_",
         parse_mode=ParseMode.MARKDOWN,
@@ -588,9 +578,9 @@ async def mc_semester(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 
 async def mc_another(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     if text == "✅ Yes, add another":
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"{_course_progress(context)}\n\n✏️ Type the *course name*:",
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=ReplyKeyboardRemove(),
@@ -599,7 +589,7 @@ async def mc_another(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     if text == "🏁 Done, save all":
         summary = _summary_text(context.user_data["mc_courses"])
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"📋 *Review before saving:*\n\n{summary}\n\n"
             "Tap *✅ Confirm & Save* to save all, or *🔄 Start over* to discard.",
             parse_mode=ParseMode.MARKDOWN,
@@ -607,23 +597,23 @@ async def mc_another(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
         return MC_CONFIRM
 
-    await update.message.reply_text("Please tap one of the buttons:", reply_markup=YESNO_KB)
+    await update.effective_message.reply_text("Please tap one of the buttons:", reply_markup=YESNO_KB)
     return MC_ANOTHER
 
 
 async def mc_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
 
     if text == "🔄 Start over":
         context.user_data.clear()
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "🔄 Discarded. Use /add_courses to start again.",
             reply_markup=ReplyKeyboardRemove(),
         )
         return ConversationHandler.END
 
     if text != "✅ Confirm & Save":
-        await update.message.reply_text("Please tap one of the buttons:", reply_markup=CONFIRM_KB)
+        await update.effective_message.reply_text("Please tap one of the buttons:", reply_markup=CONFIRM_KB)
         return MC_CONFIRM
 
     # Save all staged courses
@@ -652,7 +642,7 @@ async def mc_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         lines.append(f"\n❌ *{len(failed)} course(s) failed:*")
         lines.extend(failed)
 
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         "\n".join(lines),
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=ReplyKeyboardRemove(),
@@ -663,7 +653,7 @@ async def mc_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def conv_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
-    await update.message.reply_text("❌ Cancelled.", reply_markup=ReplyKeyboardRemove())
+    await update.effective_message.reply_text("❌ Cancelled.", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
 
@@ -709,7 +699,7 @@ def _make_room_start(room_type: str):
         context.user_data["ar_rooms"] = []
         label = "Lab" if room_type == "lab" else "Classroom"
         count = len(context.user_data["ar_rooms"])
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"🏫 *Add {label}s* _(up to {MAX_ROOMS})_\n\n"
             f"📝 *Room {count + 1}*\n\n"
             "✏️ Type the *room name* (e.g. Lab-1, Room-101):",
@@ -721,12 +711,12 @@ def _make_room_start(room_type: str):
 
 
 async def ar_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    name = update.message.text.strip()
+    name = update.effective_message.text.strip()
     if not name:
-        await update.message.reply_text("Room name cannot be empty. Please type it:")
+        await update.effective_message.reply_text("Room name cannot be empty. Please type it:")
         return AR_NAME
     context.user_data["ar_current"] = {"name": name, "room_type": context.user_data["room_type"]}
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"*{name}*\n\nSelect *capacity* (seats), or tap ⏭ Skip:",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=CAPACITY_KB,
@@ -735,12 +725,12 @@ async def ar_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def ar_capacity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     capacity = None
 
     if text != "⏭ Skip (no capacity)":
         if not text.isdigit():
-            await update.message.reply_text(
+            await update.effective_message.reply_text(
                 "Please tap one of the buttons:",
                 reply_markup=CAPACITY_KB,
             )
@@ -759,7 +749,7 @@ async def ar_capacity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
     if count >= MAX_ROOMS:
         summary = _room_summary(context.user_data["ar_rooms"])
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"{staged_msg}\n\n"
             f"⚠️ Maximum of {MAX_ROOMS} rooms reached.\n\n"
             f"{summary}\n\n"
@@ -769,7 +759,7 @@ async def ar_capacity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         )
         return AR_CONFIRM
 
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"{staged_msg}\n\n"
         f"Add another {label}? _{MAX_ROOMS - count} slot(s) remaining_",
         parse_mode=ParseMode.MARKDOWN,
@@ -779,13 +769,13 @@ async def ar_capacity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 
 async def ar_another(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     room_type = context.user_data.get("room_type", "classroom")
     label = "Lab" if room_type == "lab" else "Classroom"
     count = len(context.user_data.get("ar_rooms", []))
 
     if text == "✅ Yes, add another":
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"📝 *Room {count + 1}*\n\n✏️ Type the *room name*:",
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=ReplyKeyboardRemove(),
@@ -794,7 +784,7 @@ async def ar_another(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     if text == "🏁 Done, save all":
         summary = _room_summary(context.user_data["ar_rooms"])
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"📋 *Review before saving:*\n\n{summary}\n\n"
             "Tap *✅ Confirm & Save* to save all, or *🔄 Start over* to discard.",
             parse_mode=ParseMode.MARKDOWN,
@@ -802,23 +792,23 @@ async def ar_another(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
         return AR_CONFIRM
 
-    await update.message.reply_text("Please tap one of the buttons:", reply_markup=ROOM_YESNO_KB)
+    await update.effective_message.reply_text("Please tap one of the buttons:", reply_markup=ROOM_YESNO_KB)
     return AR_ANOTHER
 
 
 async def ar_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
 
     if text == "🔄 Start over":
         context.user_data.clear()
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "🔄 Discarded. Use /add_room or /add_lab to start again.",
             reply_markup=ReplyKeyboardRemove(),
         )
         return ConversationHandler.END
 
     if text != "✅ Confirm & Save":
-        await update.message.reply_text("Please tap one of the buttons:", reply_markup=ROOM_CONFIRM_KB)
+        await update.effective_message.reply_text("Please tap one of the buttons:", reply_markup=ROOM_CONFIRM_KB)
         return AR_CONFIRM
 
     rooms = context.user_data.get("ar_rooms", [])
@@ -843,7 +833,7 @@ async def ar_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         lines.append(f"\n❌ *{len(failed)} room(s) failed:*")
         lines.extend(failed)
 
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         "\n".join(lines),
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=ReplyKeyboardRemove(),
@@ -860,7 +850,7 @@ async def cmd_list_courses(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     with get_session() as session:
         courses = list_courses(session)
     if not courses:
-        await update.message.reply_text("No courses added yet. Use /add_course.")
+        await update.effective_message.reply_text("No courses added yet. Use /add_course.")
         return
 
     lines = ["📋 *All Courses*\n"]
@@ -876,7 +866,7 @@ async def cmd_list_courses(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             f"         {c.credit_hours}cr | {kind} | Sem {c.semester} | 👤 {instructor_str}"
         )
 
-    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
+    await update.effective_message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
 
 
 # ── /list_rooms ───────────────────────────────────────────────────────────────
@@ -887,7 +877,7 @@ async def cmd_list_rooms(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     with get_session() as session:
         rooms = list_rooms(session)
     if not rooms:
-        await update.message.reply_text("No rooms added yet. Use /add_room or /add_lab.")
+        await update.effective_message.reply_text("No rooms added yet. Use /add_room or /add_lab.")
         return
 
     lines = ["🏢 *All Rooms & Labs*\n"]
@@ -896,7 +886,7 @@ async def cmd_list_rooms(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         cap = f" | {r.capacity} seats" if r.capacity else ""
         lines.append(f"  {icon} `[{r.id:>3}]` {r.name}{cap}")
 
-    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
+    await update.effective_message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
 
 
 # ── /generate_schedule ────────────────────────────────────────────────────────
@@ -904,7 +894,7 @@ async def cmd_list_rooms(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 @admin_only
 @department_required
 async def cmd_generate_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("⚙️ Generating schedule, please wait…")
+    await update.effective_message.reply_text("⚙️ Generating schedule, please wait…")
     with get_session() as session:
         # Clear existing schedule first
         cleared = clear_schedule(session)
@@ -920,7 +910,7 @@ async def cmd_generate_schedule(update: Update, context: ContextTypes.DEFAULT_TY
             msg += f"\n  … and {len(unassigned) - 20} more"
         msg += "\n\nTip: Add more rooms/labs or reduce credit hours."
 
-    await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
+    await update.effective_message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
 
 
 # ── /view_schedule conversation ───────────────────────────────────────────────
@@ -929,7 +919,7 @@ async def cmd_generate_schedule(update: Update, context: ContextTypes.DEFAULT_TY
 @department_required
 async def vs_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     keyboard = [["All batches", "2nd"], ["3rd", "4th"]]
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         "📅 *View Schedule*\n\nSelect batch:",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=_kb(keyboard),
@@ -938,16 +928,16 @@ async def vs_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def vs_batch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     valid = ["All batches", "2nd", "3rd", "4th"]
     if text not in valid:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "Please tap one of the buttons:",
             reply_markup=_kb([["All batches", "2nd"], ["3rd", "4th"]]),
         )
         return VS_BATCH
     context.user_data["vs_batch"] = None if text == "All batches" else text
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         "Select section:",
         reply_markup=_kb([["All sections", "A", "B"]]),
     )
@@ -955,15 +945,15 @@ async def vs_batch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def vs_section(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     if text not in ("All sections", "A", "B"):
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "Please tap one of the buttons:",
             reply_markup=_kb([["All sections", "A", "B"]]),
         )
         return VS_SECTION
     context.user_data["vs_section"] = None if text == "All sections" else text
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         "Select semester:",
         reply_markup=_kb([["All semesters", "Semester 1", "Semester 2"]]),
     )
@@ -971,10 +961,10 @@ async def vs_section(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def vs_semester(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     valid = {"All semesters": None, "Semester 1": 1, "Semester 2": 2}
     if text not in valid:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "Please tap one of the buttons:",
             reply_markup=_kb([["All semesters", "Semester 1", "Semester 2"]]),
         )
@@ -994,14 +984,14 @@ async def vs_semester(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     # Telegram message limit is 4096 chars; split if needed
     MAX = 4000
     if len(text_out) <= MAX:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             text_out, parse_mode=ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove()
         )
     else:
         chunks = [text_out[i : i + MAX] for i in range(0, len(text_out), MAX)]
         for chunk in chunks:
-            await update.message.reply_text(chunk, parse_mode=ParseMode.MARKDOWN)
-        await update.message.reply_text("✅ End of schedule.", reply_markup=ReplyKeyboardRemove())
+            await update.effective_message.reply_text(chunk, parse_mode=ParseMode.MARKDOWN)
+        await update.effective_message.reply_text("✅ End of schedule.", reply_markup=ReplyKeyboardRemove())
 
     context.user_data.clear()
     return ConversationHandler.END
@@ -1014,7 +1004,7 @@ async def vs_semester(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 async def cmd_reset_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     with get_session() as session:
         count = clear_schedule(session)
-    await update.message.reply_text(f"🗑️ Schedule cleared. Removed {count} entries.")
+    await update.effective_message.reply_text(f"🗑️ Schedule cleared. Removed {count} entries.")
 
 
 # ── /delete_course conversation ───────────────────────────────────────────────
@@ -1025,13 +1015,13 @@ async def dc_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     with get_session() as session:
         courses = list_courses(session)
     if not courses:
-        await update.message.reply_text("No courses to delete.")
+        await update.effective_message.reply_text("No courses to delete.")
         return ConversationHandler.END
 
     # Build one button per course: "ID – Name (batch)"
     buttons = [[f"{c.id} – {c.name} ({c.batch} yr)"] for c in courses]
     buttons.append(["❌ Cancel"])
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         "🗑️ *Delete Course*\n\nTap the course to remove:",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=_kb(buttons, one_time=True),
@@ -1044,27 +1034,27 @@ async def dc_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def dc_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     if text == "❌ Cancel":
         return await conv_cancel(update, context)
 
     options = context.user_data.get("dc_options", {})
     course_id = options.get(text)
     if course_id is None:
-        await update.message.reply_text("Please tap one of the buttons.")
+        await update.effective_message.reply_text("Please tap one of the buttons.")
         return DC_PICK
 
     with get_session() as session:
         ok = delete_course(session, course_id)
 
     if ok:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"✅ *{text.split(' – ', 1)[1]}* deleted.",
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=ReplyKeyboardRemove(),
         )
     else:
-        await update.message.reply_text("❌ Course not found.", reply_markup=ReplyKeyboardRemove())
+        await update.effective_message.reply_text("❌ Course not found.", reply_markup=ReplyKeyboardRemove())
 
     context.user_data.clear()
     return ConversationHandler.END
@@ -1078,12 +1068,12 @@ async def dr_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     with get_session() as session:
         rooms = list_rooms(session)
     if not rooms:
-        await update.message.reply_text("No rooms to delete.")
+        await update.effective_message.reply_text("No rooms to delete.")
         return ConversationHandler.END
 
     buttons = [[f"{r.id} – {r.name} ({r.room_type})"] for r in rooms]
     buttons.append(["❌ Cancel"])
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         "🗑️ *Delete Room*\n\nTap the room to remove:",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=_kb(buttons, one_time=True),
@@ -1095,27 +1085,27 @@ async def dr_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def dr_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     if text == "❌ Cancel":
         return await conv_cancel(update, context)
 
     options = context.user_data.get("dr_options", {})
     room_id = options.get(text)
     if room_id is None:
-        await update.message.reply_text("Please tap one of the buttons.")
+        await update.effective_message.reply_text("Please tap one of the buttons.")
         return DR_PICK
 
     with get_session() as session:
         ok = delete_room(session, room_id)
 
     if ok:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"✅ *{text.split(' – ', 1)[1]}* deleted.",
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=ReplyKeyboardRemove(),
         )
     else:
-        await update.message.reply_text("❌ Room not found.", reply_markup=ReplyKeyboardRemove())
+        await update.effective_message.reply_text("❌ Room not found.", reply_markup=ReplyKeyboardRemove())
 
     context.user_data.clear()
     return ConversationHandler.END
@@ -1129,7 +1119,7 @@ async def ai_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     with get_session() as session:
         courses = list_courses(session)
     if not courses:
-        await update.message.reply_text("No courses found. Use /add_courses first.")
+        await update.effective_message.reply_text("No courses found. Use /add_courses first.")
         return ConversationHandler.END
 
     buttons = [
@@ -1137,7 +1127,7 @@ async def ai_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         for c in courses
     ]
     buttons.append(["❌ Cancel"])
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         "👤 *Assign Instructor*\n\nTap the course to update:",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=_kb(buttons, one_time=True),
@@ -1150,19 +1140,19 @@ async def ai_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def ai_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     if text == "❌ Cancel":
         return await conv_cancel(update, context)
 
     options = context.user_data.get("ai_options", {})
     course_id = options.get(text)
     if course_id is None:
-        await update.message.reply_text("Please tap one of the buttons.")
+        await update.effective_message.reply_text("Please tap one of the buttons.")
         return AI_PICK
 
     context.user_data["ai_course_id"] = course_id
     context.user_data["ai_course_label"] = text
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"Selected: *{text}*\n\n✏️ Type the instructor's full name:",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=ReplyKeyboardRemove(),
@@ -1171,9 +1161,9 @@ async def ai_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def ai_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    instructor = update.message.text.strip()
+    instructor = update.effective_message.text.strip()
     if not instructor:
-        await update.message.reply_text("Name cannot be empty. Please type the instructor's name:")
+        await update.effective_message.reply_text("Name cannot be empty. Please type the instructor's name:")
         return AI_NAME
 
     course_id = context.user_data["ai_course_id"]
@@ -1181,12 +1171,12 @@ async def ai_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         ok = update_instructor(session, course_id, instructor)
 
     if ok:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"✅ Instructor updated!\n\n👤 *{instructor}* assigned to course ID `{course_id}`.",
             parse_mode=ParseMode.MARKDOWN,
         )
     else:
-        await update.message.reply_text("❌ Course not found.")
+        await update.effective_message.reply_text("❌ Course not found.")
 
     context.user_data.clear()
     return ConversationHandler.END
@@ -1215,7 +1205,7 @@ async def al_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         assignments = get_lab_batch_assignments(session)   # {room_id: batch}
 
     if not labs:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "No labs found. Use /add_lab to add labs first.",
             reply_markup=ReplyKeyboardRemove(),
         )
@@ -1234,7 +1224,7 @@ async def al_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["al_lab_map"]   = lab_map
     context.user_data["al_lab_names"] = {lab.id: lab.name for lab in labs}
 
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         "🔬 *Assign Lab to Batch*\n\n"
         "Each lab serves *one batch only*.\n"
         "Tap a lab to assign or change its batch:",
@@ -1245,14 +1235,14 @@ async def al_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def al_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     if text == "❌ Cancel":
         return await conv_cancel(update, context)
 
     lab_map = context.user_data.get("al_lab_map", {})
     room_id = lab_map.get(text)
     if room_id is None:
-        await update.message.reply_text("Please tap one of the buttons.")
+        await update.effective_message.reply_text("Please tap one of the buttons.")
         return AL_PICK
 
     context.user_data["al_room_id"] = room_id
@@ -1264,7 +1254,7 @@ async def al_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     current = assignments.get(room_id)
     current_str = f"Currently: *{current} Year*" if current else "Currently: _unassigned_"
 
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"🔬 *{lab_name}*\n{current_str}\n\n"
         "Select the batch for this lab:",
         parse_mode=ParseMode.MARKDOWN,
@@ -1274,7 +1264,7 @@ async def al_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def al_batches(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
 
     if text == "❌ Cancel":
         return await conv_cancel(update, context)
@@ -1285,7 +1275,7 @@ async def al_batches(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if text == "🗑 Remove assignment":
         context.user_data["al_action"] = "remove"
         context.user_data["al_batch"]  = None
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"🔬 *{lab_name}*\n\n"
             "This will *remove* the batch assignment.\n"
             "The lab will not be used in scheduling until reassigned.\n\n"
@@ -1299,7 +1289,7 @@ async def al_batches(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     batch_map = {"2nd Year": "2nd", "3rd Year": "3rd", "4th Year": "4th"}
     batch = batch_map.get(text)
     if batch is None:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "Please tap one of the buttons:",
             reply_markup=BATCH_SELECT_KB,
         )
@@ -1308,7 +1298,7 @@ async def al_batches(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["al_action"] = "assign"
     context.user_data["al_batch"]  = batch
 
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         f"🔬 *{lab_name}* → *{batch} Year*\n\n"
         "Tap *✅ Confirm* to save:",
         parse_mode=ParseMode.MARKDOWN,
@@ -1318,12 +1308,12 @@ async def al_batches(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def al_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
 
     if text == "🔄 Change":
         room_id  = context.user_data["al_room_id"]
         lab_name = context.user_data["al_lab_names"][room_id]
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"🔬 *{lab_name}* — select the batch:",
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=BATCH_SELECT_KB,
@@ -1331,7 +1321,7 @@ async def al_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return AL_BATCHES
 
     if text != "✅ Confirm":
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             "Please tap one of the buttons:",
             reply_markup=_kb([["✅ Confirm", "🔄 Change"]]),
         )
@@ -1357,7 +1347,7 @@ async def al_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         else:
             msg = f"❌ Could not assign: {err}"
 
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         msg, parse_mode=ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove()
     )
     context.user_data.clear()
@@ -1376,7 +1366,7 @@ async def cmd_list_lab_assignments(
         assignments = get_lab_batch_assignments(session)   # {room_id: batch}
 
     if not labs:
-        await update.message.reply_text("No labs found. Use /add_lab first.")
+        await update.effective_message.reply_text("No labs found. Use /add_lab first.")
         return
 
     lines = ["🔬 *Lab → Batch Assignments*\n"]
@@ -1397,7 +1387,7 @@ async def cmd_list_lab_assignments(
             + ", ".join(f"*{b} Year*" for b in missing)
         )
 
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         "\n".join(lines),
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=ReplyKeyboardRemove(),
@@ -1422,7 +1412,7 @@ _SEM_MAP  = {"Semester I": 1, "Semester II": 2, "Both": None}
 @admin_only
 @department_required
 async def cur_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         "📗 *Curriculum Browser*\n\nSelect a year:",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=YEAR_KB,
@@ -1431,14 +1421,14 @@ async def cur_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def cur_year(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     valid = list(_YEAR_MAP.keys()) + ["📋 All years"]
     if text not in valid:
-        await update.message.reply_text("Please tap one of the buttons:", reply_markup=YEAR_KB)
+        await update.effective_message.reply_text("Please tap one of the buttons:", reply_markup=YEAR_KB)
         return CUR_YEAR
 
     context.user_data["cur_year"] = _YEAR_MAP.get(text)  # None = all years
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         "Select semester:",
         reply_markup=SEM_KB,
     )
@@ -1446,9 +1436,9 @@ async def cur_year(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def cur_semester(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
+    text = update.effective_message.text.strip()
     if text not in _SEM_MAP:
-        await update.message.reply_text("Please tap one of the buttons:", reply_markup=SEM_KB)
+        await update.effective_message.reply_text("Please tap one of the buttons:", reply_markup=SEM_KB)
         return CUR_SEMESTER
 
     year = context.user_data.get("cur_year")
@@ -1460,13 +1450,13 @@ async def cur_semester(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
     MAX = 4000
     if len(result) <= MAX:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             result, parse_mode=ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove()
         )
     else:
         for chunk in [result[i:i + MAX] for i in range(0, len(result), MAX)]:
-            await update.message.reply_text(chunk, parse_mode=ParseMode.MARKDOWN)
-        await update.message.reply_text("✅ End of curriculum.", reply_markup=ReplyKeyboardRemove())
+            await update.effective_message.reply_text(chunk, parse_mode=ParseMode.MARKDOWN)
+        await update.effective_message.reply_text("✅ End of curriculum.", reply_markup=ReplyKeyboardRemove())
 
     context.user_data.clear()
     return ConversationHandler.END
@@ -1477,7 +1467,7 @@ async def cur_semester(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 @admin_only
 @department_required
 async def sc_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         "🔍 *Search Curriculum*\n\nType a course name or code:",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=ReplyKeyboardRemove(),
@@ -1486,9 +1476,9 @@ async def sc_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def sc_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    query = update.message.text.strip()
+    query = update.effective_message.text.strip()
     if not query:
-        await update.message.reply_text("Please type a search term:")
+        await update.effective_message.reply_text("Please type a search term:")
         return SC_QUERY
 
     with get_session() as session:
@@ -1496,13 +1486,13 @@ async def sc_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         result  = format_curriculum_text(courses)
 
     if not courses:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             f"No courses found matching *{query}*.",
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=ReplyKeyboardRemove(),
         )
     else:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             result, parse_mode=ParseMode.MARKDOWN, reply_markup=ReplyKeyboardRemove()
         )
 
@@ -1689,12 +1679,12 @@ def build_application(token: str) -> Application:
 @department_required
 async def cmd_export_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Export the full schedule to Excel and send as a file."""
-    await update.message.reply_text("📊 Generating Excel file…")
+    await update.effective_message.reply_text("📊 Generating Excel file…")
     try:
         from utils.export import export_to_excel
         path = export_to_excel(output_path="/tmp/schedule.xlsx")
         with open(path, "rb") as f:
-            await update.message.reply_document(
+            await update.effective_message.reply_document(
                 document=f,
                 filename="IT_Department_Schedule.xlsx",
                 caption="📅 Haramaya University IT Department — Full Schedule",
@@ -1702,4 +1692,4 @@ async def cmd_export_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE
         os.remove(path)
     except Exception as exc:
         logger.exception("Export failed")
-        await update.message.reply_text(f"❌ Export failed: {exc}")
+        await update.effective_message.reply_text(f"❌ Export failed: {exc}")
