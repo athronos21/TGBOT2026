@@ -9,7 +9,7 @@ import logging
 from functools import wraps
 from typing import List
 
-from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton
+from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -249,33 +249,40 @@ async def dept_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def _send_main_menu(update: Update, department: str, first_name: str) -> None:
-    """Send the main command menu, showing the active department."""
+    """Send the main command menu as inline buttons."""
+    keyboard = InlineKeyboardMarkup([
+        # Courses
+        [InlineKeyboardButton("📚 Add Courses",         switch_inline_query_current_chat="/add_courses"),
+         InlineKeyboardButton("📋 List Courses",        switch_inline_query_current_chat="/list_courses")],
+        # Rooms
+        [InlineKeyboardButton("🏫 Add Room",            switch_inline_query_current_chat="/add_room"),
+         InlineKeyboardButton("🔬 Add Lab",             switch_inline_query_current_chat="/add_lab")],
+        [InlineKeyboardButton("🏢 List Rooms",          switch_inline_query_current_chat="/list_rooms"),
+         InlineKeyboardButton("🔬 Assign Lab",          switch_inline_query_current_chat="/assign_lab")],
+        # Instructors & assignments
+        [InlineKeyboardButton("👤 Assign Instructor",   switch_inline_query_current_chat="/assign_instructor"),
+         InlineKeyboardButton("📊 Lab Assignments",     switch_inline_query_current_chat="/list_lab_assignments")],
+        # Schedule
+        [InlineKeyboardButton("⚙️ Generate Schedule",  switch_inline_query_current_chat="/generate_schedule"),
+         InlineKeyboardButton("📅 View Schedule",       switch_inline_query_current_chat="/view_schedule")],
+        [InlineKeyboardButton("📊 Export Excel",        switch_inline_query_current_chat="/export_schedule"),
+         InlineKeyboardButton("🗑️ Reset Schedule",     switch_inline_query_current_chat="/reset_schedule")],
+        # Courses / Rooms delete
+        [InlineKeyboardButton("❌ Delete Course",       switch_inline_query_current_chat="/delete_course"),
+         InlineKeyboardButton("❌ Delete Room",         switch_inline_query_current_chat="/delete_room")],
+        # Curriculum
+        [InlineKeyboardButton("📗 Curriculum",          switch_inline_query_current_chat="/curriculum"),
+         InlineKeyboardButton("🔍 Search Course",       switch_inline_query_current_chat="/search_course")],
+        # Misc
+        [InlineKeyboardButton("🕐 Seed Slots",          switch_inline_query_current_chat="/seed_slots"),
+         InlineKeyboardButton("🔄 Switch Department",   switch_inline_query_current_chat="/switch_department")],
+    ])
     await update.message.reply_text(
         f"👋 *Welcome, {first_name}!*\n"
         f"🏛 Department: *{department}*\n\n"
-        "*Commands:*\n"
-        "📚 `/add_courses` — Add up to 10 courses\n"
-        "🏫 `/add_room` — Add a classroom\n"
-        "🔬 `/add_lab` — Add a lab room\n"
-        "📋 `/list_courses` — List all courses\n"
-        "🏢 `/list_rooms` — List all rooms & labs\n"
-        "👤 `/assign_instructor` — Assign instructor to a course\n"
-        "🔬 `/assign_lab` — Assign a lab to a batch\n"
-        "📊 `/list_lab_assignments` — View lab → batch assignments\n"
-        "⚙️ `/generate_schedule` — Generate the timetable\n"
-        "📅 `/view_schedule` — View the timetable\n"
-        "📊 `/export_schedule` — Download schedule as Excel\n"
-        "🗑️ `/reset_schedule` — Clear the timetable\n"
-        "❌ `/delete_course` — Remove a course\n"
-        "❌ `/delete_room` — Remove a room\n"
-        "🕐 `/seed_slots` — Initialize time slots _(run once)_\n\n"
-        "📖 *Curriculum:*\n"
-        "📗 `/curriculum` — Browse curriculum by year/semester\n"
-        "🔍 `/search_course` — Search curriculum by name or code\n\n"
-        "🔄 `/switch_department` — Change your department\n\n"
-        "ℹ️ Credit hours: *1 – 4*  |  Instructor defaults to *TBA*",
-        parse_mode=ParseMode.MARKDOWN,
-        reply_markup=ReplyKeyboardRemove(),
+        "Tap a button to get started:",
+        parse_mode="Markdown",
+        reply_markup=keyboard,
     )
 
 
