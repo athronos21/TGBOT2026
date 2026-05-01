@@ -15,6 +15,7 @@ from telegram.ext import (
     CommandHandler,
     ConversationHandler,
     MessageHandler,
+    CallbackQueryHandler,
     filters,
     ContextTypes,
 )
@@ -249,40 +250,84 @@ async def dept_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def _send_main_menu(update: Update, department: str, first_name: str) -> None:
-    """Send the main command menu as inline buttons."""
+    """Send the main command menu as inline buttons using callback_data."""
     keyboard = InlineKeyboardMarkup([
-        # Courses
-        [InlineKeyboardButton("📚 Add Courses",         switch_inline_query_current_chat="/add_courses"),
-         InlineKeyboardButton("📋 List Courses",        switch_inline_query_current_chat="/list_courses")],
-        # Rooms
-        [InlineKeyboardButton("🏫 Add Room",            switch_inline_query_current_chat="/add_room"),
-         InlineKeyboardButton("🔬 Add Lab",             switch_inline_query_current_chat="/add_lab")],
-        [InlineKeyboardButton("🏢 List Rooms",          switch_inline_query_current_chat="/list_rooms"),
-         InlineKeyboardButton("🔬 Assign Lab",          switch_inline_query_current_chat="/assign_lab")],
-        # Instructors & assignments
-        [InlineKeyboardButton("👤 Assign Instructor",   switch_inline_query_current_chat="/assign_instructor"),
-         InlineKeyboardButton("📊 Lab Assignments",     switch_inline_query_current_chat="/list_lab_assignments")],
-        # Schedule
-        [InlineKeyboardButton("⚙️ Generate Schedule",  switch_inline_query_current_chat="/generate_schedule"),
-         InlineKeyboardButton("📅 View Schedule",       switch_inline_query_current_chat="/view_schedule")],
-        [InlineKeyboardButton("📊 Export Excel",        switch_inline_query_current_chat="/export_schedule"),
-         InlineKeyboardButton("🗑️ Reset Schedule",     switch_inline_query_current_chat="/reset_schedule")],
-        # Courses / Rooms delete
-        [InlineKeyboardButton("❌ Delete Course",       switch_inline_query_current_chat="/delete_course"),
-         InlineKeyboardButton("❌ Delete Room",         switch_inline_query_current_chat="/delete_room")],
-        # Curriculum
-        [InlineKeyboardButton("📗 Curriculum",          switch_inline_query_current_chat="/curriculum"),
-         InlineKeyboardButton("🔍 Search Course",       switch_inline_query_current_chat="/search_course")],
-        # Misc
-        [InlineKeyboardButton("🕐 Seed Slots",          switch_inline_query_current_chat="/seed_slots"),
-         InlineKeyboardButton("🔄 Switch Department",   switch_inline_query_current_chat="/switch_department")],
+        [InlineKeyboardButton("📚 Add Courses",          callback_data="cmd_add_courses"),
+         InlineKeyboardButton("📋 List Courses",         callback_data="cmd_list_courses")],
+        [InlineKeyboardButton("🏫 Add Room",             callback_data="cmd_add_room"),
+         InlineKeyboardButton("🔬 Add Lab",              callback_data="cmd_add_lab")],
+        [InlineKeyboardButton("🏢 List Rooms",           callback_data="cmd_list_rooms"),
+         InlineKeyboardButton("🔬 Assign Lab",           callback_data="cmd_assign_lab")],
+        [InlineKeyboardButton("👤 Assign Instructor",    callback_data="cmd_assign_instructor"),
+         InlineKeyboardButton("📊 Lab Assignments",      callback_data="cmd_list_lab_assignments")],
+        [InlineKeyboardButton("⚙️ Generate Schedule",   callback_data="cmd_generate_schedule"),
+         InlineKeyboardButton("📅 View Schedule",        callback_data="cmd_view_schedule")],
+        [InlineKeyboardButton("📊 Export Excel",         callback_data="cmd_export_schedule"),
+         InlineKeyboardButton("🗑️ Reset Schedule",      callback_data="cmd_reset_schedule")],
+        [InlineKeyboardButton("❌ Delete Course",        callback_data="cmd_delete_course"),
+         InlineKeyboardButton("❌ Delete Room",          callback_data="cmd_delete_room")],
+        [InlineKeyboardButton("📗 Curriculum",           callback_data="cmd_curriculum"),
+         InlineKeyboardButton("🔍 Search Course",        callback_data="cmd_search_course")],
+        [InlineKeyboardButton("🕐 Seed Slots",           callback_data="cmd_seed_slots"),
+         InlineKeyboardButton("🔄 Switch Department",    callback_data="cmd_switch_department")],
     ])
     await update.message.reply_text(
         f"👋 *Welcome, {first_name}!*\n"
         f"🏛 Department: *{department}*\n\n"
         "Tap a button to get started:",
-        parse_mode="Markdown",
+        parse_mode=ParseMode.MARKDOWN,
         reply_markup=keyboard,
+    )
+
+
+# ── Inline button callback handler ───────────────────────────────────────────
+
+
+async def menu_button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handle all main menu inline button presses.
+    Sends the corresponding command as a bot message so existing
+    ConversationHandlers pick it up naturally.
+    """
+    query = update.callback_query
+    await query.answer()
+
+    # Map callback_data → command text
+    cmd_map = {
+        "cmd_add_courses":          "/add_courses",
+        "cmd_list_courses":         "/list_courses",
+        "cmd_add_room":             "/add_room",
+        "cmd_add_lab":              "/add_lab",
+        "cmd_list_rooms":           "/list_rooms",
+        "cmd_assign_lab":           "/assign_lab",
+        "cmd_assign_instructor":    "/assign_instructor",
+        "cmd_list_lab_assignments": "/list_lab_assignments",
+        "cmd_generate_schedule":    "/generate_schedule",
+        "cmd_view_schedule":        "/view_schedule",
+        "cmd_export_schedule":      "/export_schedule",
+        "cmd_reset_schedule":       "/reset_schedule",
+        "cmd_delete_course":        "/delete_course",
+        "cmd_delete_room":          "/delete_room",
+        "cmd_curriculum":           "/curriculum",
+        "cmd_search_course":        "/search_course",
+        "cmd_seed_slots":           "/seed_slots",
+        "cmd_switch_department":    "/switch_department",
+    }
+
+    cmd = cmd_map.get(query.data)
+    if not cmd:
+        return
+
+    # Tell the user which command was triggered, then send it
+    await query.message.reply_text(
+        f"Running {cmd}…",
+        reply_markup=ReplyKeyboardRemove(),
+    )
+    # Send the command as a message from the bot's perspective
+    # by using copy_text — the user sees the command and handlers fire
+    await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text=cmd,
     )
 
 
@@ -1502,6 +1547,9 @@ def build_application(token: str) -> Application:
     app.add_handler(CommandHandler("generate_schedule", cmd_generate_schedule))
     app.add_handler(CommandHandler("reset_schedule", cmd_reset_schedule))
     app.add_handler(CommandHandler("export_schedule", cmd_export_schedule))
+
+    # Inline menu button handler
+    app.add_handler(CallbackQueryHandler(menu_button_callback, pattern="^cmd_"))
 
     # /add_courses — button-driven, 1–10 courses per session
     app.add_handler(
