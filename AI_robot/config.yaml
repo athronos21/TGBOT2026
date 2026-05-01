@@ -1,0 +1,205 @@
+# Multi-Robot Trading System Configuration
+
+system:
+  name: "Multi-Robot Trading System"
+  version: "1.0.0"
+  environment: "development"  # development, staging, production
+
+mt5:
+  broker: "IC Markets"
+  account_number: 0  # Set your account number
+  server: "ICMarketsSC-Demo"
+  password: "${MT5_PASSWORD}"
+  leverage: 500
+  timeout: 60000  # milliseconds
+
+trading:
+  style: "day_trading"  # scalping, day_trading, swing_trading
+  
+  scalping:
+    max_trade_duration: 15  # minutes
+    min_profit_target: 5    # pips
+    
+  day_trading:
+    close_all_by: "23:00"   # UTC time
+    min_profit_target: 10   # pips
+    
+  swing_trading:
+    max_trade_duration: 72  # hours
+    min_profit_target: 50   # pips
+
+risk:
+  profile: "moderate"  # conservative, moderate, aggressive
+  
+  conservative:
+    risk_per_trade: 0.5  # percentage
+    max_daily_loss: 2.0  # percentage
+    max_drawdown: 8.0    # percentage
+    
+  moderate:
+    risk_per_trade: 1.0
+    max_daily_loss: 3.0
+    max_drawdown: 10.0
+    
+  aggressive:
+    risk_per_trade: 2.0
+    max_daily_loss: 5.0
+    max_drawdown: 15.0
+
+execution:
+  max_simultaneous_trades: 3
+  hedging_enabled: false
+  martingale_enabled: false
+  grid_trading_enabled: false
+  max_slippage: 2.0  # pips
+
+robots:
+  enabled:
+    - price_bot
+    - structure_bot
+    - liquidity_bot
+    - order_block_bot
+    - signal_aggregator_bot
+    - risk_bot
+    - execution_bot
+    - trade_manager_bot
+    - performance_monitor_bot
+    - telegram_bot
+    
+  price_bot:
+    update_interval: 1  # seconds
+    symbols: ["XAUUSD"]
+    
+  structure_bot:
+    timeframes: ["M15", "H1", "H4"]
+    lookback_periods: 100
+    
+  liquidity_bot:
+    timeframes: ["M15", "H1", "H4"]
+    equal_threshold: 5  # pips
+    
+  order_block_bot:
+    timeframes: ["M15", "H1", "H4"]
+    expiration_candles: 20
+    min_volume_ratio: 1.5
+    
+  signal_aggregator_bot:
+    min_confluence_factors: 3
+    min_confidence: 0.70
+    
+  risk_bot:
+    min_lot_size: 0.01
+    max_lot_size: 10.0
+    
+  execution_bot:
+    max_retries: 3
+    retry_delay: 1  # seconds
+    
+  trade_manager_bot:
+    breakeven_rr: 1.0
+    trailing_start_rr: 1.5
+    partial_close_rr: 2.0
+    partial_close_percent: 50
+    trailing_buffer: 20  # pips
+    
+  performance_monitor_bot:
+    update_interval: 60  # seconds
+    
+  telegram_bot:
+    update_interval: 1  # seconds
+
+database:
+  postgresql:
+    host: "localhost"
+    port: 5432
+    database: "trading_system"
+    user: "${DB_USER}"
+    password: "${DB_PASSWORD}"
+    pool_size: 10
+    max_overflow: 20
+    
+  mongodb:
+    host: "localhost"
+    port: 27017
+    database: "trading_logs"
+    user: "${MONGO_USER}"
+    password: "${MONGO_PASSWORD}"
+    
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+    password: "${REDIS_PASSWORD}"
+
+notifications:
+  telegram:
+    enabled: true
+    bot_token: "${TELEGRAM_BOT_TOKEN}"
+    chat_id: "${TELEGRAM_CHAT_ID}"
+    verbosity: "normal"  # minimal, normal, detailed
+    
+    notify_on:
+      trade_entry: true
+      trade_exit: true
+      daily_summary: true
+      weekly_summary: true
+      error_critical: true
+      error_warning: false
+      risk_alert: true
+      performance_milestone: true
+      
+    quiet_hours:
+      enabled: false
+      start: "23:00"
+      end: "07:00"
+      timezone: "UTC"
+
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file: "logs/trading_system.log"
+  max_bytes: 10485760  # 10MB
+  backup_count: 5
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+ai:
+  enabled: false  # Enable in Phase 2
+  model_path: "models/trade_predictor.pth"
+  min_confidence: 0.60
+  retrain_frequency: "weekly"  # daily, weekly, monthly
+  min_samples: 100
+
+data:
+  symbols:
+    primary: "XAUUSD"
+    additional: []
+    
+  timeframes: ["M1", "M5", "M15", "H1", "H4", "D1"]
+  
+  historical_storage:
+    duration: "5_years"
+    cleanup_policy: "archive_old"  # delete_old, archive_old, keep_all
+
+safety:
+  trading_limits:
+    max_trades_per_day: 10
+    min_time_between_trades: 5  # minutes
+    max_trades_per_hour: 3
+    
+  loss_protection:
+    pause_after_consecutive_losses: 3
+    pause_duration: 60  # minutes
+    resume_automatically: true
+    
+  kill_switch:
+    enabled: true
+    triggers:
+      - "telegram_command"
+      - "max_drawdown_exceeded"
+      - "critical_error"
+    action: "close_all_and_pause"
+    
+  circuit_breaker:
+    enabled: true
+    daily_loss_limit: 3.0
+    weekly_loss_limit: 7.0
+    monthly_loss_limit: 15.0

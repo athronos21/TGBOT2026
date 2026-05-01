@@ -1,0 +1,368 @@
+{
+  "program": "Information Technology",
+  "semesters": [
+    {
+      "year": 1,
+      "semester": 2,
+      "label": "Year 1 Semester II",
+      "courses": [
+        {
+          "code": "EmTe1012",
+          "title": "Introduction to Emerging Technologies",
+          "full_name": "Introduction to Emerging Technologies",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "EnLa1012",
+          "title": "Communicative English Skills II",
+          "full_name": "Communicative English Language Skills II",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "ITec1012",
+          "title": "Basic Computer Programming",
+          "full_name": "Basic Computer Programming",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "Math1012",
+          "title": "Applied Mathematics",
+          "full_name": "Applied Mathematics",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "HIST1012",
+          "title": "History of Ethiopia and the Horn",
+          "full_name": "History of Ethiopia and the Horn of Africa",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "Anth1012",
+          "title": "Anthropology of Ethiopian Societies and Cultures",
+          "full_name": "Anthropology of Ethiopian Societies and Cultures",
+          "credits": 4,
+          "credit_hours": 2
+        },
+        {
+          "code": "MCiE1012",
+          "title": "Moral and Civic Education",
+          "full_name": "Moral and Civic Education",
+          "credits": 4,
+          "credit_hours": 2
+        }
+      ]
+    },
+    {
+      "year": 2,
+      "semester": 1,
+      "label": "Year 2 Semester I",
+      "courses": [
+        {
+          "code": "Gltr2015",
+          "title": "Global Trends",
+          "full_name": "Global Trends",
+          "credits": 4,
+          "credit_hours": 2
+        },
+        {
+          "code": "Incl2011",
+          "title": "Inclusiveness",
+          "full_name": "Inclusiveness",
+          "credits": 4,
+          "credit_hours": 2
+        },
+        {
+          "code": "ITec2071",
+          "title": "Basic Computer Programming",
+          "full_name": "Basic Computer Programming",
+          "credits": 5,
+          "credit_hours": 3,
+          "note": "duplicate code — likely ITec2011 or similar"
+        },
+        {
+          "code": "ITec2071",
+          "title": "Fundamentals of Database Systems",
+          "full_name": "Fundamentals of Database Systems",
+          "credits": 5,
+          "credit_hours": 3,
+          "note": "duplicate code — likely ITec2072 or similar"
+        },
+        {
+          "code": "Stat2171",
+          "title": "Introduction to Statistics",
+          "full_name": "Introduction to Statistics",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "Eeng2161",
+          "title": "Fundamentals of Electricity and Electronics Device",
+          "full_name": "Fundamentals of Electricity and Electronics Devices",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "Eco2013",
+          "title": "Economics",
+          "full_name": "Economics",
+          "credits": 5,
+          "credit_hours": 3,
+          "note": "elective (*)"
+        }
+      ]
+    },
+    {
+      "year": 2,
+      "semester": 2,
+      "label": "Year 2 Semester II",
+      "courses": [
+        {
+          "code": "ITec2022",
+          "title": "Operating Systems",
+          "full_name": "Operating Systems",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "ITec2024",
+          "title": "Computer Organization and Architecture",
+          "full_name": "Computer Organization and Architecture",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "ITec2102",
+          "title": "Data Communication and Computer Networks",
+          "full_name": "Data Communication and Computer Networks",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "ITec2052",
+          "title": "Data Structure and Algorithms",
+          "full_name": "Data Structures and Algorithms",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "Math2182",
+          "title": "Discrete Mathematics",
+          "full_name": "Discrete Mathematics",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "ITec2092",
+          "title": "Internet Programming I",
+          "full_name": "Internet Programming I",
+          "credits": 5,
+          "credit_hours": 3
+        }
+      ]
+    },
+    {
+      "year": 3,
+      "semester": 1,
+      "label": "Year 3 Semester I",
+      "courses": [
+        {
+          "code": "ITec3061",
+          "title": "System Analysis and Design",
+          "full_name": "Systems Analysis and Design",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "ITec3121",
+          "title": "Multimedia Systems",
+          "full_name": "Multimedia Systems",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "ITec3051",
+          "title": "Object Oriented Programming",
+          "full_name": "Object-Oriented Programming",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "ITec4122",
+          "title": "Internet Programming II",
+          "full_name": "Internet Programming II",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "ITec3071",
+          "title": "Advanced Database Systems",
+          "full_name": "Advanced Database Systems",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "ITec3101",
+          "title": "Telecom Technologies",
+          "full_name": "Telecommunication Technologies",
+          "credits": 3,
+          "credit_hours": 2
+        }
+      ]
+    },
+    {
+      "year": 3,
+      "semester": 2,
+      "label": "Year 3 Semester II",
+      "courses": [
+        {
+          "code": "ITec3084",
+          "title": "GIS and Remote Sensing",
+          "full_name": "Geographic Information Systems and Remote Sensing",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "ITec3102",
+          "title": "Introduction to Distributed System",
+          "full_name": "Introduction to Distributed Systems",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "ITec3062",
+          "title": "Information Technology Project Management",
+          "full_name": "Information Technology Project Management",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "ITec3054",
+          "title": "Event Driven Programming",
+          "full_name": "Event-Driven Programming",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "ITec3082",
+          "title": "Information Storage and Retrieval",
+          "full_name": "Information Storage and Retrieval",
+          "credits": 5,
+          "credit_hours": 3
+        },
+        {
+          "code": "ITec3032",
+          "title": "Computer Maintenance and Technical Support",
+          "full_name": "Computer Maintenance and Technical Support",
+          "credits": 5,
+          "credit_hours": 3
+        }
+      ]
+    }
+  ,
+    {
+      "year": 4,
+      "semester": 1,
+      "label": "Year 4 Semester I",
+      "status": "placeholder — courses to be added",
+      "courses": [
+        {
+          "code": "TBD",
+          "title": "Course 1",
+          "full_name": "TBD",
+          "credits": null,
+          "credit_hours": null
+        },
+        {
+          "code": "TBD",
+          "title": "Course 2",
+          "full_name": "TBD",
+          "credits": null,
+          "credit_hours": null
+        },
+        {
+          "code": "TBD",
+          "title": "Course 3",
+          "full_name": "TBD",
+          "credits": null,
+          "credit_hours": null
+        },
+        {
+          "code": "TBD",
+          "title": "Course 4",
+          "full_name": "TBD",
+          "credits": null,
+          "credit_hours": null
+        },
+        {
+          "code": "TBD",
+          "title": "Course 5",
+          "full_name": "TBD",
+          "credits": null,
+          "credit_hours": null
+        },
+        {
+          "code": "TBD",
+          "title": "Course 6",
+          "full_name": "TBD",
+          "credits": null,
+          "credit_hours": null
+        }
+      ]
+    },
+    {
+      "year": 4,
+      "semester": 2,
+      "label": "Year 4 Semester II",
+      "status": "placeholder — courses to be added",
+      "courses": [
+        {
+          "code": "TBD",
+          "title": "Course 1",
+          "full_name": "TBD",
+          "credits": null,
+          "credit_hours": null
+        },
+        {
+          "code": "TBD",
+          "title": "Course 2",
+          "full_name": "TBD",
+          "credits": null,
+          "credit_hours": null
+        },
+        {
+          "code": "TBD",
+          "title": "Course 3",
+          "full_name": "TBD",
+          "credits": null,
+          "credit_hours": null
+        },
+        {
+          "code": "TBD",
+          "title": "Course 4",
+          "full_name": "TBD",
+          "credits": null,
+          "credit_hours": null
+        },
+        {
+          "code": "TBD",
+          "title": "Course 5",
+          "full_name": "TBD",
+          "credits": null,
+          "credit_hours": null
+        },
+        {
+          "code": "TBD",
+          "title": "Course 6",
+          "full_name": "TBD",
+          "credits": null,
+          "credit_hours": null
+        }
+      ]
+    }
+  ]
+}

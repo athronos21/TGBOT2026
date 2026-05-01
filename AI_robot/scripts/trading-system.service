@@ -1,0 +1,34 @@
+[Unit]
+Description=Multi-Robot Trading System
+After=network.target postgresql.service mongodb.service redis.service
+Wants=postgresql.service mongodb.service redis.service
+
+[Service]
+Type=simple
+User=trading
+Group=trading
+WorkingDirectory=/opt/trading-system
+ExecStart=/opt/trading-system/venv/bin/python /opt/trading-system/src/main.py
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=trading-system
+
+# Environment variables
+Environment="MT5_PASSWORD=%e"
+Environment="DB_USER=%e"
+Environment="DB_PASSWORD=%e"
+Environment="TELEGRAM_BOT_TOKEN=%e"
+Environment="TELEGRAM_CHAT_ID=%e"
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/trading-system/logs /opt/trading-system/data /opt/trading-system/models /opt/trading-system/backups
+
+[Install]
+WantedBy=multi-user.target

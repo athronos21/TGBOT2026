@@ -1,0 +1,17 @@
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+build/
+captures/
+.gradle/
+local.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store

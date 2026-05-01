@@ -1,0 +1,104 @@
+{
+  "task": "13.2 Run backtests",
+  "execution_date": "2026-04-14T15:24:44.459042",
+  "training_period": {
+    "start": "2022-01-01T00:00:00",
+    "end": "2023-12-31T00:00:00",
+    "candles": 12480
+  },
+  "test_period": {
+    "start": "2024-01-01T00:00:00",
+    "end": "2024-06-30T00:00:00"
+  },
+  "subtask_1_backtest": {
+    "total_trades": 597,
+    "winning_trades": 198,
+    "losing_trades": 399,
+    "win_rate": 33.165829145728644,
+    "profit_factor": 0.3651479482229473,
+    "total_profit": -3938884.76587597,
+    "net_profit": -3938884.76587597,
+    "max_drawdown": 3983307.325446254,
+    "max_drawdown_percent": 8769.447083409155,
+    "sharpe_ratio": -6.342343264994302,
+    "profit_loss_ratio": 0.7358284411159394,
+    "trades_per_day": 0.824585635359116,
+    "average_trade_duration": 154124.62311557788
+  },
+  "subtask_2_analysis": {
+    "performance_summary": {
+      "total_trades": 597,
+      "winning_trades": 198,
+      "losing_trades": 399,
+      "win_rate": 33.165829145728644,
+      "profit_factor": 0.3651479482229473,
+      "total_profit": -3938884.76587597,
+      "net_profit": -3938884.76587597
+    },
+    "risk_metrics": {
+      "max_drawdown": 3983307.325446254,
+      "max_drawdown_percent": 8769.447083409155,
+      "sharpe_ratio": -6.342343264994302,
+      "profit_loss_ratio": 0.7358284411159394
+    },
+    "trading_frequency": {
+      "trades_per_day": 0.824585635359116,
+      "average_trade_duration": 154124.62311557788
+    },
+    "assessment": {
+      "win_rate": "Needs Improvement",
+      "profit_factor": "Poor",
+      "drawdown": "High Risk",
+      "sharpe_ratio": "Poor"
+    },
+    "overall_assessment": "System needs significant improvement"
+  },
+  "subtask_3_optimization": {
+    "best_parameters": {
+      "spread": 1.5,
+      "slippage_max": 3.0
+    },
+    "best_result": {
+      "total_trades": 618,
+      "winning_trades": 224,
+      "losing_trades": 394,
+      "win_rate": 36.24595469255664,
+      "profit_factor": 0.4636533365337114,
+      "total_profit": -3069405.7981560663,
+      "net_profit": -3069405.7981560663,
+      "max_drawdown": 3096471.7953413697,
+      "max_drawdown_percent": 11032.82300962694,
+      "sharpe_ratio": -4.763887380389958,
+      "profit_loss_ratio": 0.8155331008673317,
+      "trades_per_day": 0.8547717842323651,
+      "average_trade_duration": 156943.68932038834,
+      "parameters": {
+        "spread": 1.5,
+        "slippage_max": 3.0
+      }
+    }
+  },
+  "subtask_4_validation": {
+    "out_of_sample_result": {
+      "total_trades": 149,
+      "winning_trades": 62,
+      "losing_trades": 87,
+      "win_rate": 41.61073825503356,
+      "profit_factor": 0.5639443353779192,
+      "total_profit": -516077.4827076057,
+      "net_profit": -516077.4827076057,
+      "max_drawdown": 677114.8609993636,
+      "max_drawdown_percent": 24789.380460618893,
+      "sharpe_ratio": -3.476189414860732,
+      "profit_loss_ratio": 0.7913412448044995,
+      "trades_per_day": 0.8418079096045198,
+      "average_trade_duration": 159559.73154362416
+    },
+    "overfitting_check": {
+      "win_rate": "Failed",
+      "profit_factor": "Failed",
+      "drawdown": "Failed"
+    },
+    "overall_validation": "Failed - Significant overfitting detected"
+  }
+}

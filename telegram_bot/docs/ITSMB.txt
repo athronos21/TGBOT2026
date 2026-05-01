@@ -1,0 +1,375 @@
+# roadmap to build your Telegram scheduling bot for Haramaya University IT Department.
+
+---
+
+# 🧭 1. Understand What You’re Building
+
+You are building:
+
+> 🎯 A **constraint-based timetable system** controlled through Telegram
+
+It has 4 parts:
+
+1. **Bot interface** (input/output)
+2. **Backend logic** (scheduling engine)
+3. **Database** (store everything)
+4. **Scheduler algorithm** (core brain)
+
+---
+
+# 🏗️ 2. Recommended Tech Stack (Keep It Simple)
+
+Use this unless you have a strong reason not to:
+
+* Language: Python
+* Bot framework: python-telegram-bot
+* Database: PostgreSQL
+* ORM (optional but helpful): SQLAlchemy
+* Advanced scheduling (later): Google OR-Tools
+
+---
+
+# 🧱 3. System Design (Your Blueprint)
+
+## A. Core Entities
+
+You MUST design these correctly:
+
+### 1. Batches & Sections
+
+```
+2nd Year → A, B
+3rd Year → A, B
+4th Year → A, B
+```
+
+---
+
+### 2. Courses
+
+```
+id
+name
+credit_hours
+is_lab (true/false)
+batch (2nd, 3rd, 4th)
+semester (1 or 2)
+```
+
+---
+
+### 3. Rooms
+
+```
+id
+name
+type (classroom / lab)
+capacity (optional)
+```
+
+---
+
+### 4. Time Slots
+
+Example:
+
+```
+Monday 8–9
+Monday 9–10
+...
+Friday 4–5
+```
+
+---
+
+### 5. Schedule Table
+
+```
+course_id
+room_id
+batch
+section
+time_slot
+semester
+```
+
+---
+
+# ⚙️ 4. Scheduling Logic (CORE PART)
+
+You cannot skip structure here.
+
+## Step 1: Expand Courses
+
+Convert:
+
+> “Course with 3 credit hours”
+
+Into:
+
+> 3 sessions per week × sections
+
+---
+
+## Step 2: Separate Courses
+
+* Lab courses
+* Non-lab courses
+
+---
+
+## Step 3: Assign LABS FIRST ⚠️
+
+Why? Labs are limited.
+
+### Rules:
+
+* Only assign to lab rooms
+* Avoid conflicts:
+
+  * same room
+  * same section
+
+### Priority idea:
+
+```
+4th year → 3rd → 2nd
+```
+
+---
+
+## Step 4: Assign Classrooms
+
+Same idea:
+
+* find free room
+* find free slot
+* check no conflict
+
+---
+
+## Step 5: Conflict Rules
+
+Always check:
+
+* A section cannot have 2 classes at same time
+* A room cannot have 2 classes at same time
+
+---
+
+## Step 6: Fairness (IMPORTANT)
+
+Track per section:
+
+* morning slots
+* afternoon slots
+
+Balance them:
+
+```
+if section A has too many mornings → give next slot to B
+```
+
+---
+
+# 🤖 5. Telegram Bot Design
+
+Using python-telegram-bot
+
+## Commands
+
+### Admin Only (Department Head)
+
+```
+/start
+/add_course
+/add_room
+/add_lab
+/list_courses
+/generate_schedule
+/view_schedule
+/reset_schedule
+```
+
+---
+
+## Example Interaction
+
+```
+User: /add_course
+Bot: Enter name
+User: Database Systems
+
+Bot: Credit hours?
+User: 3
+
+Bot: Lab? (yes/no)
+User: yes
+
+Bot: Batch?
+User: 3rd
+```
+
+---
+
+# 🧮 6. Algorithm Strategy (REALISTIC)
+
+Start SIMPLE:
+
+## Version 1 (MVP)
+
+* Random assignment + conflict checking
+* Retry if conflict
+
+---
+
+## Version 2 (Better)
+
+* Greedy algorithm:
+
+  * pick next available slot
+  * assign best fit
+
+---
+
+## Version 3 (Advanced)
+
+Use:
+👉 Google OR-Tools
+
+This allows:
+
+* perfect fairness
+* constraint solving
+* professional-level scheduling
+
+---
+
+# 🗂️ 7. Project Structure
+
+```
+project/
+│
+├── bot/
+│   ├── handlers.py
+│   ├── commands.py
+│
+├── scheduler/
+│   ├── engine.py
+│   ├── constraints.py
+│
+├── database/
+│   ├── models.py
+│   ├── db.py
+│
+├── main.py
+└── config.py
+```
+
+---
+
+# 🧪 8. Development Plan (Step-by-Step)
+
+## Phase 1: Setup
+
+* Create Telegram bot
+* Connect Python
+* Setup database
+
+---
+
+## Phase 2: Data Input
+
+* Add courses
+* Add rooms/labs
+* Add time slots
+
+---
+
+## Phase 3: Basic Scheduler
+
+* Assign without crashing
+* No fairness yet
+
+---
+
+## Phase 4: Improve Logic
+
+* Add fairness
+* Add priority rules
+
+---
+
+## Phase 5: Output
+
+* Show schedule in chat
+* Export to Excel (optional)
+
+---
+
+# ⚠️ 9. Common Mistakes (Avoid These)
+
+### ❌ Trying to automate everything at once
+
+→ Start simple
+
+### ❌ No database
+
+→ You will lose data
+
+### ❌ No constraints
+
+→ You get impossible schedules
+
+### ❌ Ignoring labs first
+
+→ system fails
+
+---
+
+# 💡 10. Smart Enhancements (Later)
+
+* Instructor assignment
+* Room capacity matching
+* Conflict resolution UI
+* Web dashboard (optional)
+
+---
+
+# 🚀 11. What You Should Do TODAY
+
+Start with this exact order:
+
+1. Create bot using Telegram
+2. Install python-telegram-bot
+3. Build:
+
+   * `/add_course`
+   * `/add_room`
+4. Setup PostgreSQL
+5. Hardcode time slots
+6. Write simple scheduler (even if ugly)
+
+---
+
+# 🧠 Final Advice
+
+This project is not “just coding” — it’s:
+
+* system design
+* constraint solving
+* iteration
+
+If you try to make it perfect immediately, you’ll stall.
+
+---
+
+✅ If you want next step, I can:
+
+* give you **database schema SQL**
+* write **starter bot code**
+* or build **first scheduling algorithm with you**
+
+Just tell me:
+👉 *“start coding”* or *“design database”*
+

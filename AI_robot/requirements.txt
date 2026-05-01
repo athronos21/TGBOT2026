@@ -1,0 +1,110 @@
+# ============================================================================
+# Multi-Robot Trading System - Requirements
+# Python 3.10+
+# ============================================================================
+
+# Core Dependencies
+# ----------------------------------------------------------------------------
+numpy>=1.24.0
+pandas>=2.0.0
+python-dotenv>=1.0.0
+pyyaml>=6.0
+requests>=2.31.0
+aiohttp>=3.9.0
+asyncio>=3.4.3
+python-dateutil>=2.8.2
+
+
+# Database Drivers
+# ----------------------------------------------------------------------------
+# PostgreSQL - Structured data (trades, signals, market data)
+psycopg2-binary>=2.9.9
+asyncpg>=0.29.0
+sqlalchemy>=2.0.23
+
+# MongoDB - Logs, events, unstructured data
+pymongo>=4.6.0
+motor>=3.3.2
+
+# Redis - Message bus and caching
+redis>=5.0.1
+aioredis>=2.0.1
+hiredis>=2.3.2
+
+
+# Machine Learning & AI
+# ----------------------------------------------------------------------------
+# Deep Learning
+torch>=2.0.0
+torchvision>=0.15.0
+tensorflow>=2.13.0
+
+# ML Utilities
+scikit-learn>=1.3.0
+scipy>=1.11.0
+joblib>=1.3.2
+
+# Feature Engineering
+ta-lib>=0.4.28
+pandas-ta>=0.3.14b
+
+# Model Optimization
+optuna>=3.5.0
+
+
+# Trading Platform Integration
+# ----------------------------------------------------------------------------
+MetaTrader5>=5.0.45
+
+# Telegram Bot
+# ----------------------------------------------------------------------------
+python-telegram-bot>=20.7
+
+# Web Framework (Optional - Phase 2+)
+# ----------------------------------------------------------------------------
+flask>=3.0.0
+flask-cors>=4.0.0
+fastapi>=0.108.0
+uvicorn>=0.25.0
+
+# Data Validation
+# ----------------------------------------------------------------------------
+pydantic>=2.5.0
+marshmallow>=3.20.0
+
+# Logging & Monitoring
+# ----------------------------------------------------------------------------
+loguru>=0.7.2
+sentry-sdk>=1.39.0
+
+# Database Migrations
+# ----------------------------------------------------------------------------
+alembic>=1.13.0
+
+# Utilities
+# ----------------------------------------------------------------------------
+cryptography>=41.0.7
+pytz>=2023.3
+schedule>=1.2.0
+
+# Testing Libraries
+# ----------------------------------------------------------------------------
+pytest>=7.4.0
+pytest-asyncio>=0.21.1
+pytest-cov>=4.1.0
+pytest-mock>=3.12.0
+hypothesis>=6.92.0
+faker>=22.0.0
+
+# Code Quality
+# ----------------------------------------------------------------------------
+black>=23.12.0
+flake8>=6.1.0
+pylint>=3.0.3
+mypy>=1.7.1
+isort>=5.13.2
+
+# Documentation
+# ----------------------------------------------------------------------------
+sphinx>=7.2.6
+sphinx-rtd-theme>=2.0.0
